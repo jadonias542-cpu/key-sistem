@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Key System</title>
+<style>
+  :root { color-scheme: dark; --bg:#090b12; --panel:#121725; --line:#293247; --accent:#8b5cf6; --accent2:#22d3ee; --text:#f4f6ff; --muted:#a7b0c5; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:22px; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; color:var(--text); background:radial-gradient(ellipse at top,#1a1740 0%,#0b0d18 48%,#07080d 100%); }
+  .card { width:min(100%,440px); padding:30px; border:1px solid var(--line); border-radius:22px; background:rgba(18,23,37,.94); box-shadow:0 24px 80px #0008; }
+  .logo { width:54px;height:54px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));font-size:25px;font-weight:900;margin-bottom:18px; }
+  h1 { margin:0 0 8px;font-size:28px;letter-spacing:-.7px; }
+  .sub { color:var(--muted);font-size:14px;line-height:1.55;margin:0 0 24px; }
+  label { display:block;font-size:13px;font-weight:700;margin-bottom:8px; }
+  input { width:100%;padding:14px 15px;border-radius:12px;border:1px solid #36415a;background:#0a0e18;color:var(--text);outline:none;font-size:15px; }
+  input:focus { border-color:var(--accent);box-shadow:0 0 0 3px #8b5cf633; }
+  button { width:100%;border:0;border-radius:12px;padding:14px 16px;font-size:15px;font-weight:800;cursor:pointer;transition:transform .15s,opacity .15s; }
+  button:active { transform:scale(.985); }
+  button:disabled { cursor:not-allowed;opacity:.45; }
+  .primary { margin-top:12px;color:white;background:linear-gradient(100deg,#7c3aed,#6366f1); }
+  .secondary { margin-top:12px;background:#20283a;color:#eef2ff;border:1px solid #35415a; }
+  .hidden { display:none!important; }
+  .status { margin-top:20px;padding:15px;border:1px solid var(--line);border-radius:14px;background:#0c111d; }
+  .status-title { font-weight:800;font-size:14px;margin-bottom:7px; }
+  .muted { color:var(--muted);font-size:13px;line-height:1.5; }
+  .progress { height:7px;background:#252d40;border-radius:99px;overflow:hidden;margin:13px 0 8px; }
+  .bar { height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s; }
+  .steps { display:flex;gap:7px;margin-top:14px; }
+  .step { flex:1;text-align:center;padding:9px 3px;border:1px solid var(--line);border-radius:9px;font-size:11px;color:var(--muted); }
+  .step.active { border-color:var(--accent);color:#e9ddff;background:#8b5cf61a; }
+  .step.done { border-color:#0e9f83;color:#6ee7c8;background:#0e9f8318; }
+  .key { margin-top:12px;padding:15px;border-radius:12px;border:1px dashed #6d5ce7;background:#17152c;text-align:center;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:16px;overflow-wrap:anywhere; }
+  .notice { margin-top:16px;color:#7f8aa3;text-align:center;font-size:11px; }
+  #message { min-height:18px;margin-top:9px;font-size:12px;color:#a5f3fc; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo">K</div>
+  <h1>Key System</h1>
+  <p class="sub">Digite seu nome de usuário para verificar e liberar sua key.</p>
+
+  <form id="userForm">
+    <label for="username">Nome de usuário</label>
+    <input id="username" maxlength="32" autocomplete="username" placeholder="Digite seu usuário..." required>
+    <button class="primary" type="submit">Verificar usuário</button>
+  </form>
+
+  <section id="waitArea" class="status hidden" aria-live="polite">
+    <div class="status-title" id="waitTitle">Etapa 1 de 3</div>
+    <div class="muted" id="waitText">Aguarde para continuar.</div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="muted" id="countdown">Aguarde 10 segundos...</div>
+    <div class="steps">
+      <div class="step active" id="step1">ETAPA 1</div>
+      <div class="step" id="step2">ETAPA 2</div>
+      <div class="step" id="step3">ETAPA 3</div>
+    </div>
+    <button id="continueBtn" class="primary" disabled type="button">Aguarde...</button>
+  </section>
+
+  <section id="keyArea" class="status hidden" aria-live="polite">
+    <div class="status-title">✓ Key liberada</div>
+    <div class="muted">Copie sua key abaixo:</div>
+    <div class="key" id="keyText">key-dg7885-432$_</div>
+    <button class="primary" id="copyBtn" type="button">Copiar key</button>
+    <div id="message" role="status"></div>
+  </section>
+  <div class="notice">Key System • Demonstração no navegador</div>
+</main>
+<script>
+(() => {
+  const KEY = 'key-dg7885-432$_';
+  const form = document.getElementById('userForm');
+  const username = document.getElementById('username');
+  const waitArea = document.getElementById('waitArea');
+  const keyArea = document.getElementById('keyArea');
+  const waitTitle = document.getElementById('waitTitle');
+  const waitText = document.getElementById('waitText');
+  const countdown = document.getElementById('countdown');
+  const bar = document.getElementById('bar');
+  const continueBtn = document.getElementById('continueBtn');
+  const message = document.getElementById('message');
+  let stage = 1;
+  let timer = null;
+  let remaining = 10;
+
+  function setStepClasses() {
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById('step' + i);
+      el.classList.toggle('active', i === stage);
+      el.classList.toggle('done', i < stage);
+    }
+  }
+  function startStage() {
+    clearInterval(timer);
+    remaining = 10;
+    waitTitle.textContent = `Etapa ${stage} de 3`;
+    waitText.textContent = stage === 3 ? 'Última etapa! Aguarde para liberar a key.' : 'Aguarde o contador terminar para avançar.';
+    countdown.textContent = `Aguarde ${remaining} segundos...`;
+    bar.style.width = '0%';
+    continueBtn.disabled = true;
+    continueBtn.textContent = 'Aguarde...';
+    setStepClasses();
+    timer = setInterval(() => {
+      remaining--;
+      countdown.textContent = remaining > 0 ? `Aguarde ${remaining} segundo${remaining === 1 ? '' : 's'}...` : 'Tempo concluído!';
+      bar.style.width = ((10 - remaining) * 10) + '%';
+      if (remaining <= 0) {
+        clearInterval(timer);
+        continueBtn.disabled = false;
+        continueBtn.textContent = stage === 3 ? 'Receber key' : 'Continuar';
+      }
+    }, 1000);
+  }
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearInterval(timer);
+    const name = username.value.trim();
+    if (!name) return;
+    form.classList.add('hidden');
+    message.textContent = '';
+    keyArea.classList.add('hidden');
+    if (name.toLowerCase() === 'adplp') {
+      waitArea.classList.add('hidden');
+      keyArea.classList.remove('hidden');
+    } else {
+      stage = 1;
+      waitArea.classList.remove('hidden');
+      startStage();
+    }
+  });
+  continueBtn.addEventListener('click', () => {
+    if (continueBtn.disabled) return;
+    if (stage < 3) {
+      stage++;
+      startStage();
+    } else {
+      waitArea.classList.add('hidden');
+      keyArea.classList.remove('hidden');
+    }
+  });
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(KEY);
+      message.textContent = 'Key copiada!';
+    } catch (err) {
+      const temp = document.createElement('textarea');
+      temp.value = KEY;
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.select();
+      const ok = document.execCommand('copy');
+      temp.remove();
+      message.textContent = ok ? 'Key copiada!' : 'Não foi possível copiar automaticamente. Selecione e copie a key.';
+    }
+  });
+})();
+</script>
+</body>
+</html>
